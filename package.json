@@ -38,5 +38,9 @@
     "@scrypted/mqtt": "^0.0.56",
     "@scrypted/sdk": "^0.1.17",
     "webpack-bundle-analyzer": "^4.5.0"
-  }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
 }
