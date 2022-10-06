@@ -1,46 +1,17 @@
-import { AirQuality, HumiditySensor, NOXSensor, PM10Sensor, PM25Sensor, TemperatureUnit, Thermometer, VOCSensor } from '@scrypted/sdk';
+import { AirQuality, AirQualitySensor, HumiditySensor, NOXSensor, PM10Sensor, PM25Sensor, TemperatureUnit, Thermometer, VOCSensor } from '@scrypted/sdk';
 import { DysonFan } from './DysonFan';
 
-export class DysonFanWithAdvancedAirQuality extends DysonFan implements HumiditySensor, Thermometer, PM25Sensor, PM10Sensor, NOXSensor, VOCSensor {
+export class DysonFanWithAdvancedAirQuality extends DysonFan implements PM25Sensor, PM10Sensor, NOXSensor, VOCSensor, AirQualitySensor {
     constructor(nativeId: string) {
         super(nativeId);
-    }
-    async setTemperatureUnit(temperatureUnit: TemperatureUnit): Promise<void> {
-        this.storageSettings.values.temperatureUnit = temperatureUnit;
-        this.temperatureUnit = temperatureUnit;
-    }
-
-    updateSettings() {
-        super.updateSettings();
-
-        this.temperatureUnit = this.storageSettings.values.temperatureUnit;
-    }
-
-    convertKelvin(k: number, temperatureUnit?: TemperatureUnit): number {
-        if (!temperatureUnit)
-            temperatureUnit = this.temperatureUnit;
-
-        if (temperatureUnit == TemperatureUnit.F) {
-            return k - 459.67;
-        }
-
-        if (temperatureUnit == TemperatureUnit.C) {
-            return k - 273.15;
-        }
     }
 
     processEnvironmentalSensorData(content: any) {
         super.processEnvironmentalSensorData(content);
 
-        // Sets the sensor data for temperature
-        if (content['data']['tact'] !== 'OFF') {
-            this.temperature = this.convertKelvin(Number.parseInt(content['data']['tact']) / 10.0, TemperatureUnit.C);
-        }
-
-        // Sets the sensor data for humidity
-        if (content['data']['hact'] !== 'OFF') {
-            this.humidity = Number.parseInt(content['data']['hact']);
-        }
+        // skip the below if the product doesn't have advanced air quality sensors
+        if (!this.productInfo.hasAdvancedAirQualitySensors)
+            return;
 
         // Parses the air quality sensor data
         let pm25 = 0;

@@ -9,18 +9,22 @@ export class DysonBase extends ScryptedDeviceBase implements Online, Settings, R
     storageSettings = new StorageSettings(this, {
         ipAddress: {
             title: "IP Address",
+            group: 'Credentials',
             type: "string",
+            placeholder: "192.168.1.XX",
             description: "The IP Address of the fan on your local network.",
             onPut: () => this.connect()
         },
         serialNumber: {
             title: "Serial Number",
+            group: 'Credentials',
             type: "string",
             description: "The Serial Number of the Dyson fan.",
             readonly: true
         },
         localPassword: {
             title: "Credentials",
+            group: 'Credentials',
             type: "string",
             description: "Local credentials for accessing the device.",
             readonly: true
@@ -38,30 +42,42 @@ export class DysonBase extends ScryptedDeviceBase implements Online, Settings, R
             defaultValue: 'C',
             onPut: () => this.updateSettings(),
         },
+        autoMode: {
+            title: 'Auto',
+            description: 'The switch that controls auto mode.',
+            type: 'boolean',
+            onPut: () => this.updateSettings(),
+        },
         continuousMonitoring: {
             title: 'Continuous Monitoring',
-            description: 'Optional: The switch that controls continous monitoring.',
-            type: `boolean`,
+            description: 'The switch that controls continous monitoring.',
+            type: 'boolean',
             onPut: () => this.updateSettings(),
         },
         nightMode: {
             title: 'Night Mode',
-            description: 'Optional: The switch that controls night mode.',
-            type: `boolean`,
+            description: 'The switch that controls night mode.',
+            type: 'boolean',
             onPut: () => this.updateSettings(),
         },
         focusMode: {
-            title: 'Focus Mode',
-            description: 'Optional: The switch that controls focus mode.',
-            type: `boolean`,
+            title: 'Focus Airflow',
+            description: 'The switch that controls focus of the airflow, this is labeled as \'Difuse\' in the app.',
+            type: 'boolean',
+            onPut: () => this.updateSettings(),
+        },
+        swingMode: {
+            title: 'Oscillation',
+            description: 'The switch that controls oscillation of the fan moving back and forth.',
+            type: 'boolean',
             onPut: () => this.updateSettings(),
         },
         backwardsAirflow: {
             title: 'Backwards Airflow',
-            description: 'Optional: The switch that controls the backwards airflow direction.',
-            type: `boolean`,
+            description: 'The switch that controls the airflow direction.',
+            type: 'boolean',
             onPut: () => this.updateSettings(),
-        },
+        }
     });
 
     mqttClient: MqttClient;
@@ -201,10 +217,16 @@ export class DysonBase extends ScryptedDeviceBase implements Online, Settings, R
             if (setting.key === "ipAddress" || setting.key === "serialNumber" || setting.key === "localPassword" || setting.key === "productType" || setting.key === "temperatureUnit")
                 settings.push(setting);
 
+            else if (setting.key === "autoMode" && (this.capabilities.includes("auto") || this.capabilities.includes("fmod")))
+                settings.push(setting);
+
             else if (setting.key === "continuousMonitoring" && this.capabilities.includes("rhtm"))
                 settings.push(setting);
 
             else if (setting.key === "nightMode" && this.capabilities.includes("nmod"))
+                settings.push(setting);
+
+            else if (setting.key === "swingMode" && this.capabilities.includes("oson"))
                 settings.push(setting);
 
             else if (setting.key === "focusMode" && this.capabilities.includes("ffoc"))

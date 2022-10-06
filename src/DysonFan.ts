@@ -1,29 +1,49 @@
-import { AirQuality, AirQualitySensor, Fan, FanMode, FanState, OnOff } from '@scrypted/sdk';
+import { AirQuality, AirQualitySensor, Fan, FanMode, FanState, FanStatus, HumiditySensor, OnOff, TemperatureUnit, Thermometer } from '@scrypted/sdk';
 import { DysonBase } from './DysonBase';
 
-export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff {
-    speed: number;
-    mode?: FanMode;
-    active?: boolean;
-    maxSpeed?: number;
-    counterClockwise?: boolean;
-    availableModes?: FanMode[];
-
+export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff, HumiditySensor, Thermometer {
     tiltStatus: boolean;
     errorCode: string;
     warningCode: string;
+    filterChangeRequired: boolean;
+    filterLifeLevel: number;
 
     constructor(nativeId: string) {
         super(nativeId);
+
+        this.fan = {
+            speed: 0,
+            maxSpeed: 100,
+            swing: false,
+            active: false,
+            availableModes: [FanMode.Auto, FanMode.Manual],
+            mode: FanMode.Manual
+        };
     }
 
     getState() : any {
         let commandData = super.getState();
 
-        commandData['rhtm'] = this.storageSettings.values.continuousMonitoring ? 'ON' : 'OFF';
-        commandData['nmod'] = this.storageSettings.values.nightMode ? 'ON' : 'OFF';
-        commandData['ffoc'] = this.storageSettings.values.focusMode ? 'ON' : 'OFF';
-        commandData['fdir'] = this.storageSettings.values.backwardsAirflow ? 'OFF' : 'ON';
+        if (this.capabilities.includes("auto"))
+            commandData['auto'] = this.storageSettings.values.autoMode ? 'ON' : 'OFF';
+
+        if (this.capabilities.includes("fmod"))
+            commandData['fmod'] = this.storageSettings.values.autoMode ? 'AUTO' : 'FAN';
+
+        if (this.capabilities.includes("rhtm"))
+            commandData['rhtm'] = this.storageSettings.values.continuousMonitoring ? 'ON' : 'OFF';
+
+        if (this.capabilities.includes("nmod"))
+            commandData['nmod'] = this.storageSettings.values.nightMode ? 'ON' : 'OFF';
+
+        if (this.capabilities.includes("oson"))
+            commandData['oson'] = this.storageSettings.values.swingMode ? 'ON' : 'OFF';
+
+        if (this.capabilities.includes("ffoc"))
+            commandData['ffoc'] = this.storageSettings.values.focusMode ? 'ON' : 'OFF';
+
+        if (this.capabilities.includes("fdir"))
+            commandData['fdir'] = this.storageSettings.values.backwardsAirflow ? 'OFF' : 'ON';
 
         return commandData;
     }
@@ -31,52 +51,86 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff 
     turnOff(): Promise<void> {
         return this.turnOn(false);
     }
+
+    async setTemperatureUnit(temperatureUnit: TemperatureUnit): Promise<void> {
+        this.storageSettings.values.temperatureUnit = temperatureUnit;
+        this.temperatureUnit = temperatureUnit;
+    }
+
+    updateSettings() {
+        super.updateSettings();
+
+        this.temperatureUnit = this.storageSettings.values.temperatureUnit;
+    }
+
+    convertKelvin(k: number, temperatureUnit?: TemperatureUnit): number {
+        if (!this.temperatureUnit)
+            this.temperatureUnit = TemperatureUnit.C;
+
+        if (!temperatureUnit)
+            temperatureUnit = this.temperatureUnit;
+
+        let c = k - 273.15;
+
+        if (temperatureUnit === TemperatureUnit.C)
+            return c;
+
+        let f = c * (9/5) + 32;
+
+        if (temperatureUnit === TemperatureUnit.F)
+            return f;
+    }
+
     async turnOn(on:boolean = true): Promise<void> {
-        // Checks if the device is already in the target mode
-        //if (this.on === on) {
-        //    return;
-        //}
+        this.on = on;
 
-        // Gets the active mode based on the configuration
-        //let activeMode = this.config.enableAutoModeWhenActivating ? 'AUTO' : 'FAN';
-
-        // Builds the command data, which contains the active state and (optionally) the oscillation and night modes
         let commandData = {
-            fpwr: !on ? 'OFF' : 'ON',
-            fmod: !on ? 'OFF' : 'ON'
         };
 
-        //if (config.enableOscillationWhenActivating) {
-        //    commandData['oson'] = 'ON';
-        //}
-        //if (config.enableNightModeWhenActivating) {
-        //    commandData['nmod'] = 'ON';
-        //}
+        // restore state when turned on
+        if (on)
+            commandData = this.getState();
 
-        // The Dyson app disables heating when the device is turned on
-        //if (value === Characteristic.Active.ACTIVE && device.info.hasHeating && !config.isHeatingSafetyIgnored) {
-        //    commandData['hmod'] = 'OFF';
-        //}
+        if (this.capabilities.includes("fmod")) {
+            let fanMode = this.fan.mode === FanMode.Auto ? 'AUTO' : 'FAN';
+            commandData['fmod'] = on ? fanMode : 'OFF';
+        }
+
+        if (this.capabilities.includes("fpwr")) {
+            commandData['fpwr'] = on ? 'ON' : 'OFF';
+        }
 
         // Executes the actual change of the active state
-        this.console.log(`${on ? 'turnOn': 'turnOff'}: ${JSON.stringify(commandData)}`);
+        this.console.log(`${on ? 'turnOn': 'turnOff'}(): ${JSON.stringify(commandData)}`);
         this.setState(commandData);
     }
     
     async setFan(fan: FanState): Promise<void> {
-        this.console.log("setFan");
-
         let commandData = {
         };
 
-        if (fan.mode) {
-            let fanMode = fan.mode === FanMode.Auto ? 'AUTO' : 'FAN';
-            commandData['fmod'] = this.on ? 'OFF' : fanMode;
-            commandData['auto'] = fan.mode === FanMode.Auto ? 'ON' : 'OFF';
+        // if the fan is off and fan speed is set to 0 ignore
+        // this is a combination of two events that occur from HomeKit bindings that should be ignored
+        if (!this.on && fan.speed === 0)
+            return;
+
+        if (fan.mode !== undefined) {
+            if (this.capabilities.includes("fmod")) {
+                let fanMode = fan.mode === FanMode.Auto ? 'AUTO' : 'FAN';
+                commandData['fmod'] = fanMode;
+            }
+    
+            if (this.capabilities.includes("fpwr")) {
+                commandData['auto'] = fan.mode === FanMode.Auto ? 'ON' : 'OFF';
+            }
         }
 
-        if (fan.speed) {
+        if (fan.speed !== undefined) {
             commandData['fnsp'] = ('0000' + Math.round(fan.speed / 10.0).toString()).slice(-4)
+        }
+
+        if (fan.swing !== undefined) {
+            commandData['oson'] = fan.swing ? 'ON' : 'OFF';
         }
 
         this.console.log(`setFan(${JSON.stringify(fan)}): ${JSON.stringify(commandData)}`);
@@ -85,6 +139,8 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff 
 
     processCurrentState(content: any) {
         super.processCurrentState(content);
+
+        let fan: FanStatus = JSON.parse(JSON.stringify(this.fan));
 
         // Sets the power state
         if (content['product-state']['fpwr']) {
@@ -96,28 +152,29 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff 
 
         // Sets the operation mode
         if (content['product-state']['fpwr'] && content['product-state']['fnst'] && content['product-state']['auto']) {
-            let fanState = content['product-state']['fnst'] === 'OFF' ? "IDLE" : "PURIFYING_AIR";
+            let fanState = content['product-state']['fnst'] !== 'OFF';
             let fanMode = content['product-state']['auto'] === 'OFF' ? FanMode.Manual : FanMode.Auto;
 
-            this.fan.active = this.on;
-            this.fan.mode = fanMode;
+            fan.active = fanState;
+            fan.mode = fanMode;
         }
         if (content['product-state']['fmod'] && content['product-state']['fnst']) {
-            let fanState = content['product-state']['fnst'] === 'OFF' ? "IDLE" : "PURIFYING_AIR";
+            let fanState = content['product-state']['fnst'] !== 'OFF';
             let fanMode = content['product-state']['fmod'] === 'AUTO' ? FanMode.Auto : FanMode.Manual;
 
-            this.fan.active = this.on;
-            this.fan.mode = fanMode;
+            fan.active = fanState;
+            fan.mode = fanMode;
         }
 
         // Sets the rotation status
-        let swingMode = content['product-state']['oson'] === 'OFF' ? "SWING_DISABLED" : "SWING_ENABLED";
+        this.storageSettings.values.swingMode = content['product-state']['oson'] !== 'OFF'
+        fan.swing = this.storageSettings.values.swingMode;
 
         // Sets the fan speed based on the auto setting
         if (content['product-state']['fnsp'] !== 'AUTO' && content['product-state']['fnsp'] !== 'OFF') {
             let rotationSpeed = Number.parseInt(content['product-state']['fnsp']) * 10;
 
-            this.fan.speed = rotationSpeed;
+            fan.speed = rotationSpeed;
         }
 
         // Sets the state of the continuous monitoring switch
@@ -140,26 +197,28 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff 
             this.storageSettings.values.backwardsAirflow =  content['product-state']['fdir'] === 'OFF';
         }
 
-        /*
-            // Sets the filter life
-            if (content['product-state']['cflr'] && content['product-state']['hflr']) {
-                const cflr = content['product-state']['cflr'] == "INV" ? 100 : Number.parseInt(content['product-state']['cflr']);
-                const hflr = content['product-state']['hflr'] == "INV" ? 100 : Number.parseInt(content['product-state']['hflr']);
-                airPurifierService.updateCharacteristic(Characteristic.FilterChangeIndication, Math.min(cflr, hflr) >= 10 ? Characteristic.FilterChangeIndication.FILTER_OK : Characteristic.FilterChangeIndication.CHANGE_FILTER);
-                airPurifierService.updateCharacteristic(Characteristic.FilterLifeLevel, Math.min(cflr,hflr));
-            }
-            if (content['product-state']['filf']) {
-    
-                // Calculates the filter life, assuming 12 hours a day, 360 days
-                const filterLife = Number.parseInt(content['product-state']['filf']) / (360 * 12);
-                airPurifierService.updateCharacteristic(Characteristic.FilterChangeIndication, Math.ceil(filterLife * 100) >= 10 ? Characteristic.FilterChangeIndication.FILTER_OK : Characteristic.FilterChangeIndication.CHANGE_FILTER);
-                airPurifierService.updateCharacteristic(Characteristic.FilterLifeLevel, Math.ceil(filterLife * 100));
-            }
-        */
+        if (content['product-state']['cflr'] && content['product-state']['hflr']) {
+            const cflr = content['product-state']['cflr'] == "INV" ? 100 : Number.parseInt(content['product-state']['cflr']);
+            const hflr = content['product-state']['hflr'] == "INV" ? 100 : Number.parseInt(content['product-state']['hflr']);
+
+            this.filterChangeRequired = Math.min(cflr, hflr) < 10;
+            this.filterLifeLevel = Math.min(cflr, hflr);
+        }
+
+        if (content['product-state']['filf']) {
+            const filf = Number.parseInt(content['product-state']['filf']);
+
+            this.filterChangeRequired = Math.ceil(filf * 100) < 10;
+            this.filterLifeLevel = Math.ceil(filf * 100);
+        }
+
+        this.fan = fan;
     }
 
     processStateChange(content: any) {
         super.processStateChange(content);
+
+        let fan: FanStatus = JSON.parse(JSON.stringify(this.fan));
 
         // Sets the power state
         if (content['product-state']['fpwr']) {
@@ -171,28 +230,29 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff 
 
         // Sets the operation mode
         if (content['product-state']['fpwr'] && content['product-state']['fnst'] && content['product-state']['auto']) {
-            let fanState = content['product-state']['fnst'][1] === 'OFF' ? "IDLE" : "PURIFYING_AIR";
+            let fanState = content['product-state']['fnst'][1] !== 'OFF';
             let fanMode = content['product-state']['auto'][1] === 'OFF' ? FanMode.Manual : FanMode.Auto;
 
-            this.fan.active = this.on;
-            this.fan.mode = fanMode;
+            fan.active = fanState;
+            fan.mode = fanMode;
         }
         if (content['product-state']['fmod'] && content['product-state']['fnst']) {
-            let fanState = content['product-state']['fnst'][1] === 'OFF' ? "IDLE" : "PURIFYING_AIR";
+            let fanState = content['product-state']['fnst'][1] !== 'OFF';
             let fanMode = content['product-state']['fmod'][1] === 'AUTO' ? FanMode.Auto : FanMode.Manual;
 
-            this.fan.active = this.on;
-            this.fan.mode = fanMode;
+            fan.active = fanState;
+            fan.mode = fanMode;
         }
 
         // Sets the rotation status
-        let swingMode = content['product-state']['oson'][1] === 'OFF' ? "SWING_DISABLED" : "SWING_ENABLED";
+        this.storageSettings.values.swingMode = content['product-state']['oson'][1] !== 'OFF'
+        fan.swing = this.storageSettings.values.swingMode;
 
         // Sets the fan speed based on the auto setting
         if (content['product-state']['fnsp'][1] !== 'AUTO' && content['product-state']['fnsp'][1] !== 'OFF') {
             let rotationSpeed = Number.parseInt(content['product-state']['fnsp'][1]) * 10;
 
-            this.fan.speed = rotationSpeed;
+            fan.speed = rotationSpeed;
         }
 
         // Sets the state of the continuous monitoring switch
@@ -215,27 +275,36 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff 
             this.storageSettings.values.backwardsAirflow =  content['product-state']['fdir'][1] === 'OFF';
         }
 
-        //this.processCurrentState(content);
-        /*
-            // Sets the filter life
-            if (content['product-state']['cflr'] && content['product-state']['hflr']) {
-                const cflr = content['product-state']['cflr'][1] == "INV" ? 100 : Number.parseInt(content['product-state']['cflr'][1]);
-                const hflr = content['product-state']['cflr'][1] == "INV" ? 100 : Number.parseInt(content['product-state']['cflr'][1]);
-                airPurifierService.updateCharacteristic(Characteristic.FilterChangeIndication, Math.min(cflr, hflr) >= 10 ? Characteristic.FilterChangeIndication.FILTER_OK : Characteristic.FilterChangeIndication.CHANGE_FILTER);
-                airPurifierService.updateCharacteristic(Characteristic.FilterLifeLevel, Math.min(cflr,hflr));
-            }
-            if (content['product-state']['filf']) {
+        if (content['product-state']['cflr'] && content['product-state']['hflr']) {
+            const cflr = content['product-state']['cflr'][1] == "INV" ? 100 : Number.parseInt(content['product-state']['cflr'][1]);
+            const hflr = content['product-state']['hflr'][1] == "INV" ? 100 : Number.parseInt(content['product-state']['hflr'][1]);
 
-                // Calculates the filter life, assuming 12 hours a day, 360 days
-                const filterLife = Number.parseInt(content['product-state']['filf'][1]) / (360 * 12);
-                airPurifierService.updateCharacteristic(Characteristic.FilterChangeIndication, Math.ceil(filterLife * 100) >= 10 ? Characteristic.FilterChangeIndication.FILTER_OK : Characteristic.FilterChangeIndication.CHANGE_FILTER);
-                airPurifierService.updateCharacteristic(Characteristic.FilterLifeLevel, Math.ceil(filterLife * 100));
-            }
-*/
+            this.filterChangeRequired = Math.min(cflr, hflr) >= 10;
+            this.filterLifeLevel = Math.min(cflr, hflr);
+        }
+
+        if (content['product-state']['filf']) {
+            const filf = Number.parseInt(content['product-state']['filf'][1]);
+
+            this.filterChangeRequired = Math.ceil(filf * 100) >= 10;
+            this.filterLifeLevel = Math.ceil(filf * 100);
+        }
+
+        this.fan = fan;
     }
 
     processEnvironmentalSensorData(content: any) {
         super.processEnvironmentalSensorData(content);
+
+        // Sets the sensor data for temperature
+        if (content['data']['tact'] !== 'OFF') {
+            this.temperature = this.convertKelvin(Number.parseInt(content['data']['tact']) / 10.0, TemperatureUnit.C);
+        }
+
+        // Sets the sensor data for humidity
+        if (content['data']['hact'] !== 'OFF') {
+            this.humidity = Number.parseInt(content['data']['hact']);
+        }
 
         // Parses the air quality sensor data
         let p = 0;

@@ -150,9 +150,11 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                     nativeId: fan.Serial,
                     interfaces: [
                         ScryptedInterface.Fan,
-                        ScryptedInterface.Settings,
+                        ScryptedInterface.Thermometer,
+                        ScryptedInterface.HumiditySensor,
                         ScryptedInterface.AirQualitySensor,
                         ScryptedInterface.OnOff,
+                        ScryptedInterface.Settings,
                         ScryptedInterface.Online,
                         ScryptedInterface.Refresh
                     ],
@@ -172,8 +174,6 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                 };
 
                 if (product.hasAdvancedAirQualitySensors) {
-                    d.interfaces.push(ScryptedInterface.Thermometer);
-                    d.interfaces.push(ScryptedInterface.HumiditySensor);
                     d.interfaces.push(ScryptedInterface.PM25Sensor);
                     d.interfaces.push(ScryptedInterface.PM10Sensor);
                     d.interfaces.push(ScryptedInterface.NOXSensor);
@@ -181,14 +181,10 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                 }
 
                 if (product.hasHeating) {
-                    d.type = ScryptedDeviceType.Thermostat;
-                    d.interfaces.push(ScryptedInterface.Thermometer);
                     d.interfaces.push(ScryptedInterface.TemperatureSetting);
                 }
 
                 if (product.hasHumidifier) {
-                    d.type = ScryptedDeviceType.Thermostat;
-                    d.interfaces.push(ScryptedInterface.Thermometer);
                     d.interfaces.push(ScryptedInterface.HumiditySensor);
                     d.interfaces.push(ScryptedInterface.HumiditySetting);
                 }

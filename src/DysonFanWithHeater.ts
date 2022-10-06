@@ -5,29 +5,19 @@ export class DysonFanWithHeater extends DysonFanWithAdvancedAirQuality implement
     constructor(nativeId: string) {
         super(nativeId);
 
-        this.thermostatAvailableModes = [ThermostatMode.Auto, ThermostatMode.FanOnly, ThermostatMode.Heat, ThermostatMode.Off, ThermostatMode.On, ThermostatMode.Purifier];
-        this.thermostatSetpointLow = 0; // 32F
-        this.thermostatSetpointHigh = 38; // ~99F
+        this.thermostatAvailableModes = [ThermostatMode.Heat, ThermostatMode.On, ThermostatMode.Auto, ThermostatMode.Off];
     }
     async setThermostatMode(mode: ThermostatMode): Promise<void> {
         let commandData = {
             hmod: mode === ThermostatMode.On || mode == ThermostatMode.Heat || mode == ThermostatMode.Auto ? 'HEAT' : 'OFF'
         };
 
-        if (mode == ThermostatMode.FanOnly) {
-            commandData['fpwr'] = !this.on ? 'OFF' : 'ON';
-            commandData['fmod'] = !this.on ? 'OFF' : 'AUTO';
-        }
-
-        if (mode === ThermostatMode.Purifier) {
-            commandData['fpwr'] = !this.on ? 'OFF' : 'ON';
-            commandData['rhtm'] = 'ON';
-        }
-
         this.console.log(`setThermostatMode(${mode}): ${JSON.stringify(commandData)}`);
         this.setState(commandData);
     }
     async setThermostatSetpoint(degrees: number): Promise<void> {
+        this.thermostatSetpoint = degrees;
+
         let commandData = {
             hmax: ('0000' + Math.round((degrees + 273.0) * 10.0).toString()).slice(-4)
         }
@@ -35,11 +25,21 @@ export class DysonFanWithHeater extends DysonFanWithAdvancedAirQuality implement
         this.console.log(`setThermostatSetpoint(${degrees}): ${JSON.stringify(commandData)}`);
         this.setState(commandData);
     }
-    async setThermostatSetpointHigh(high: number): Promise<void> {
-        this.console.log(`setThermostatSetpointHigh(${high})`);
 
+    async setThermostatSetpointHigh(high: number): Promise<void> {
+        this.thermostatSetpointHigh = high
+
+        let commandData = {
+            hmax: ('0000' + Math.round((high + 273.0) * 10.0).toString()).slice(-4)
+        }
+
+        this.console.log(`setThermostatSetpointHigh(${high}): ${JSON.stringify(commandData)}`);
+        this.setState(commandData);
     }
+
     async setThermostatSetpointLow(low: number): Promise<void> {
+        this.thermostatSetpointLow = low;
+
         this.console.log(`setThermostatSetpointLow(${low})`);
     }
 
