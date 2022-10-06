@@ -1,6 +1,6 @@
 {
   "name": "@scrypted/dyson",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "scripts": {
     "scrypted-setup-project": "scrypted-setup-project",
     "prescrypted-setup-project": "scrypted-package-json",
@@ -38,9 +38,5 @@
     "@scrypted/mqtt": "^0.0.56",
     "@scrypted/sdk": "^0.1.17",
     "webpack-bundle-analyzer": "^4.5.0"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
-  },
+  }
 }
