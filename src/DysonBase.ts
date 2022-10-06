@@ -109,10 +109,15 @@ export class DysonBase extends ScryptedDeviceBase implements Online, Settings, R
         if (this.mqttClient)
             return;
 
-        this.console.log(`connecting to : mqtt://${this.storageSettings.values.ipAddress}`)
+        const ipAddress: string = (this.storageSettings.values.ipAddress ?? "").trim();
+
+        if (ipAddress.length === 0)
+            return;
+
+        this.console.log(`connecting to : mqtt://${ipAddress}`)
 
         // Initializes the MQTT client for local communication with the device
-        this.mqttClient = mqtt.connect('mqtt://' + this.storageSettings.values.ipAddress, {
+        this.mqttClient = mqtt.connect('mqtt://' + ipAddress, {
             username: this.storageSettings.values.serialNumber,
             password: this.storageSettings.values.localPassword,
             protocolVersion: 3,

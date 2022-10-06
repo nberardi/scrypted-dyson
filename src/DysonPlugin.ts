@@ -103,8 +103,15 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
         }
 
         // authentication can be skipped if we have an authorization header
-        if (!this.storageSettings.values.authorizationHeader) {
-            this.putSetting("authorizationHeader", await this.getAuthorizationHeader());
+        if (this.storageSettings.values.authorizationHeader === undefined) {
+            var authorizationHeader = await this.getAuthorizationHeader();
+
+            if (authorizationHeader === undefined) {
+                this.console.error("aborting, authorization header not provided");
+                return;
+            }
+
+            this.storageSettings.values.authorizationHeader = authorizationHeader;
         }
 
         if (this.storageSettings.values.authorizationHeader) {
@@ -167,6 +174,7 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                         metadata: {
                             localPassword: localPasswordJson,
                             localPasswordHash: localPasswordHash,
+                            productType: fan.ProductType,
                             product: product,
                             api: fan
                         }
@@ -189,11 +197,6 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                     d.interfaces.push(ScryptedInterface.HumiditySetting);
                 }
 
-                const s = deviceManager.getDeviceStorage(d.nativeId);
-                s.setItem("productType", fan.ProductType);
-                s.setItem("serialNumber", fan.Serial);
-                s.setItem("localPassword", localPasswordHash);
-
                 devices.push(d);
             }
 
@@ -201,6 +204,14 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                 providerNativeId: this.nativeId,
                 devices
             });
+
+            // prime the values in the device settings
+            for (const d of devices) {
+                const s = deviceManager.getDeviceStorage(d.nativeId);
+                s.setItem("serialNumber", d.info.serialNumber);
+                s.setItem("productType", d.info.metadata.productType);
+                s.setItem("localPassword", d.info.metadata.localPasswordHash);
+            }
         }
     }
 
@@ -212,65 +223,77 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
         const client = axios.create();
         const self = this;
 
-        const catchError = function (error: AxiosError): void {
-            let msg = "";
-            if (error?.response) {
-                msg = `[Status ${error.response.status} ${error.response.statusText}] ${error.response.data?.Message}`;
-            } else {
-                msg = error.message;
-            }
-
+        const catchError = function (error: AxiosError) {
+            let msg = `[Status ${error.response.status} ${error.response.statusText}] ${error.response.data?.Message}`;
+            self.console.error(msg);
             self.log.e(msg);
         };
 
-        // verify account status and if 2FA is required
-        if (!this.accountStatus || !this.authenticationMethod) {
-            const step1 = await client(`https://appapi.cp.dyson.com/v3/userregistration/email/userstatus?country=${this.storageSettings.values.countryCode}`, {
-                method: "POST",
-                headers: {
-                    "User-Agent": agent
-                },
-                data: {
-                    email: this.storageSettings.values.email
+        const otpCode: string = (this.storageSettings.values.otpCode ?? "").trim();
+
+        // if the OTP code has not been set then lets request one
+        if (otpCode.length === 0) {
+
+            // verify account status and if 2FA is required
+            if (!this.accountStatus || !this.authenticationMethod) {
+                try {
+                    const step1Response = await client(`https://appapi.cp.dyson.com/v3/userregistration/email/userstatus?country=${this.storageSettings.values.countryCode}`, {
+                        method: "POST",
+                        headers: {
+                            "User-Agent": agent
+                        },
+                        data: {
+                            email: this.storageSettings.values.email
+                        }
+                    });
+
+                    if (step1Response.status === 200) {
+                        self.console.log("login step 1", step1Response.data);
+
+                        self.accountStatus = step1Response.data.accountStatus;
+                        self.authenticationMethod = step1Response.data.authenticationMethod;
+                    } 
+                } catch (error) {
+                    catchError(error);
+                    return undefined;
                 }
-            })
-                .then(function (response) {
-                    self.console.log("login step 1", response.data);
+            }
 
-                    self.accountStatus = response.data.accountStatus;
-                    self.authenticationMethod = response.data.authenticationMethod;
-                })
-                .catch(catchError);
-        }
+            // get the challenge identity and send out an email with 2FA code
+            if (!this.challengeId) {
+                try {
+                    const step2Response = await client(`https://appapi.cp.dyson.com/v3/userregistration/email/auth?country=${this.storageSettings.values.countryCode}&culture=en-US`, {
+                        method: "POST",
+                        headers: {
+                            "User-Agent": agent
+                        },
+                        data: {
+                            email: this.storageSettings.values.email
+                        }
+                    });
 
-        // get the challenge identity and send out an email with 2FA code
-        if (this.authenticationMethod === "EMAIL_PWD_2FA" && !this.challengeId) {
-            const step2 = await client(`https://appapi.cp.dyson.com/v3/userregistration/email/auth?country=${this.storageSettings.values.countryCode}`, {
-                method: "POST",
-                headers: {
-                    "User-Agent": agent
-                },
-                data: {
-                    email: this.storageSettings.values.email
+                    if (step2Response.status === 200) {
+                        self.console.log("login step 2", step2Response.data);
+
+                        self.challengeId = step2Response.data.challengeId;
+
+                        // reset 2FA code for user to re-enter
+                        this.storageSettings.values.otpCode = undefined;
+                        this.log.w("Check your email for a One-Time Password, and enter it the settings.")
+                    } 
+                } catch (error) {
+                    catchError(error);
+                    return undefined;
                 }
-            })
-                .then(function (response) {
-                    self.console.log("login step 2", response.data);
-
-                    self.challengeId = response.data.challengeId;
-
-                    // reset 2FA code for user to re-enter
-                    self.putSetting("otpCode", "");
-                })
-                .catch(catchError);
+            }
         }
 
         let authorizationHeader: string;
 
-        if (this.authenticationMethod) {
-            // once we have the callenge identity and 2FA code we can get the authorizationHeader
-            if (this.authenticationMethod === "EMAIL_PWD_2FA" && this.challengeId && this.storageSettings.values.otpCode) {
-                const step3mfa = await client(`https://appapi.cp.dyson.com/v3/userregistration/email/verify?country=${this.storageSettings.values.countryCode}`, {
+        // once we have the callenge identity and 2FA code we can get the authorizationHeader
+        if (this.challengeId && this.storageSettings.values.otpCode) {
+            try {
+                const step3mfaResponse = await client(`https://appapi.cp.dyson.com/v3/userregistration/email/verify`, {
                     method: "POST",
                     headers: {
                         "User-Agent": agent
@@ -281,35 +304,22 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                         challengeId: this.challengeId,
                         otpCode: this.storageSettings.values.otpCode
                     }
-                })
-                    .then(function (response) {
-                        self.console.log("login step 3 (2FA)", response.data);
+                });
 
-                        authorizationHeader = `${response.data.tokenType} ${response.data.token}`;
+                if (step3mfaResponse.status === 200) {
+                    self.console.log("login step 3 (2FA)", step3mfaResponse.data);
 
-                        // reset 2FA code for user to re-enter
-                        self.putSetting("otpCode", "");
-                    })
-                    .catch(catchError);
+                    authorizationHeader = `${step3mfaResponse.data.tokenType} ${step3mfaResponse.data.token}`;
 
-            } else if (this.authenticationMethod !== "EMAIL_PWD_2FA") {
-                const step3nofa = await client(`https://appapi.cp.dyson.com/v1/userregistration/authenticate?country=${this.storageSettings.values.countryCode}`, {
-                    method: "POST",
-                    headers: {
-                        "User-Agent": agent
-                    },
-                    data: {
-                        email: this.storageSettings.values.email,
-                        password: this.storageSettings.values.password
-                    }
-                })
-                    .then(function (response) {
-                        self.console.log("login step 3 (NoFA)", response.data);
-
-                        authorizationHeader = `Basic ${Buffer.from(response.data.account + ':' + response.data.password).toString("base64")}`;
-                    })
-                    .catch(catchError);
+                    // reset 2FA code for user to re-enter
+                    this.storageSettings.values.otpCode = undefined;
+                    this.console.log("One-Time Password reset as it is not needed any longer.");
+                } 
+            } catch (error) {
+                catchError(error);
+                return undefined;
             }
+
         }
 
         return authorizationHeader;
