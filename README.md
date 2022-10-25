@@ -12,7 +12,7 @@
 
 #### How do I know when my setup is complete?
 
-A value you appear in the `Token` field.  
+A value will appear in the `Token` field.  
 
 #### No matter what I am trying, I am unable to get an email code. What is happening?
 
