@@ -39,6 +39,24 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff,
         if (this.capabilities.includes("oson"))
             commandData['oson'] = this.storageSettings.values.swingMode ? 'ON' : 'OFF';
 
+        if (this.capabilities.includes("osal") && this.storageSettings.values.swingMode && this.storageSettings.values.swingModeCenter !== 0) {
+            const centerPoint = (this.storageSettings.values.swingModeCenter ?? 0) + 180;
+            const degrees = Number.parseFloat(this.storageSettings.values.swingModeDegrees) / 2.0;
+
+            let lowerBound = Math.min(Math.max(centerPoint - degrees, 5.0), 355.0);
+            let upperBound = Math.min(Math.max(centerPoint + degrees, 5.0), 355.0);
+
+            commandData['osal'] = ('0000' + Math.min(lowerBound, upperBound).toString()).slice(-4);
+            commandData['osau'] = ('0000' + Math.max(lowerBound, upperBound).toString()).slice(-4);
+        }
+
+        if (this.capabilities.includes("ancp") && this.storageSettings.values.swingMode) {
+            if (this.storageSettings.values.swingModeCenter === 0)
+                commandData['ancp'] = ('0000' + this.storageSettings.values.swingModeDegrees).slice(-4);
+            else
+                commandData['ancp'] = 'CUST';
+        }
+
         if (this.capabilities.includes("ffoc"))
             commandData['ffoc'] = this.storageSettings.values.focusMode ? 'ON' : 'OFF';
 
@@ -170,11 +188,31 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff,
         this.storageSettings.values.swingMode = content['product-state']['oson'] !== 'OFF'
         fan.swing = this.storageSettings.values.swingMode;
 
+        if (content['product-state']['ancp']) {
+            let degrees = Number.parseInt(content['product-state']['ancp']);
+            if (Number.isInteger(degrees))
+                this.storageSettings.values.swingModeDegrees = degrees;
+        }
+
+        if (content['product-state']['osal']) {
+            const lowerBoundSwing = Number.parseInt(content['product-state']['osal']);
+            const upperBoundSwing = Number.parseInt(content['product-state']['osau']);
+
+            const diff = upperBoundSwing - lowerBoundSwing;
+            const centerPoint = upperBoundSwing - (diff / 2.0) - 180;
+            this.storageSettings.values.swingModeCenter = centerPoint.toFixed(0);
+
+            if (diff === 45 || diff === 90 || diff === 180 || diff === 350)
+                this.storageSettings.values.swingModeDegrees = diff;
+        }
+
         // Sets the fan speed based on the auto setting
         if (content['product-state']['fnsp'] !== 'AUTO' && content['product-state']['fnsp'] !== 'OFF') {
             let rotationSpeed = Number.parseInt(content['product-state']['fnsp']) * 10;
 
             fan.speed = rotationSpeed;
+            fan.active = true;
+            fan.mode = FanMode.Manual;
         }
 
         // Sets the state of the continuous monitoring switch
@@ -212,6 +250,7 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff,
             this.filterLifeLevel = Math.ceil(filf * 100);
         }
 
+        this.storageSettings.values.autoMode = fan.mode === FanMode.Auto;
         this.fan = fan;
     }
 
@@ -248,11 +287,31 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff,
         this.storageSettings.values.swingMode = content['product-state']['oson'][1] !== 'OFF'
         fan.swing = this.storageSettings.values.swingMode;
 
+        if (content['product-state']['ancp']) {
+            let degrees = Number.parseInt(content['product-state']['ancp'][1]);
+            if (Number.isInteger(degrees))
+                this.storageSettings.values.swingModeDegrees = degrees;
+        }
+
+        if (content['product-state']['osal']) {
+            const lowerBoundSwing = Number.parseInt(content['product-state']['osal'][1]);
+            const upperBoundSwing = Number.parseInt(content['product-state']['osau'][1]);
+
+            const diff = upperBoundSwing - lowerBoundSwing;
+            const centerPoint = upperBoundSwing - (diff / 2.0) - 180;
+            this.storageSettings.values.swingModeCenter = centerPoint.toFixed(0);
+
+            if (diff === 45 || diff === 90 || diff === 180 || diff === 350)
+                this.storageSettings.values.swingModeDegrees = diff;
+        }
+
         // Sets the fan speed based on the auto setting
         if (content['product-state']['fnsp'][1] !== 'AUTO' && content['product-state']['fnsp'][1] !== 'OFF') {
             let rotationSpeed = Number.parseInt(content['product-state']['fnsp'][1]) * 10;
 
             fan.speed = rotationSpeed;
+            fan.active = true;
+            fan.mode = FanMode.Manual;
         }
 
         // Sets the state of the continuous monitoring switch
@@ -290,6 +349,7 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff,
             this.filterLifeLevel = Math.ceil(filf * 100);
         }
 
+        this.storageSettings.values.autoMode = fan.mode === FanMode.Auto;
         this.fan = fan;
     }
 

@@ -1,8 +1,10 @@
-import { FanMode, Online, Refresh, ScryptedDeviceBase, ScryptedInterface, Setting, Settings, SettingValue } from '@scrypted/sdk';
+import { FanMode, FanState, FanStatus, Online, Refresh, ScryptedDeviceBase, ScryptedInterface, Setting, Settings, SettingValue } from '@scrypted/sdk';
 import { StorageSetting, StorageSettings, StorageSettingsDevice } from '@scrypted/sdk/storage-settings';
 import { ProductInfo } from "./ProductInfo";
 import mqtt from 'mqtt';
 import { MqttClient } from 'mqtt';
+import { isNullOrUndefined } from 'util';
+import { setEngine } from 'crypto';
 
 
 export class DysonBase extends ScryptedDeviceBase implements Online, Settings, Refresh, StorageSettingsDevice {
@@ -70,7 +72,23 @@ export class DysonBase extends ScryptedDeviceBase implements Online, Settings, R
             title: 'Oscillation',
             description: 'The switch that controls oscillation of the fan moving back and forth.',
             type: 'boolean',
-            onPut: () => this.updateSettings(),
+            onPut: () => this.updateSettings()
+        },
+        swingModeCenter: {
+            title: 'Oscillation Center',
+            description: 'The oscillation center point of the fan moving back and forth.',
+            type: 'number',
+            range: [-130, 130],
+            placeholder: "0",
+            onPut: () => this.updateSettings()
+        },
+        swingModeDegrees: {
+            title: 'Oscillation Degrees',
+            description: 'The oscillation degrees of the fan moving back and forth.',
+            type: 'string',
+            choices: ['45', '90', '180', '350'],
+            onPut: () => this.updateSettings()
+
         },
         backwardsAirflow: {
             title: 'Backwards Airflow',
@@ -201,7 +219,6 @@ export class DysonBase extends ScryptedDeviceBase implements Online, Settings, R
 
     updateSettings() {
         if (this.processingState) {
-            //this.console.debug('Skipping updateSettings() due to processingState')
             return;
         }
 
@@ -232,6 +249,12 @@ export class DysonBase extends ScryptedDeviceBase implements Online, Settings, R
                 settings.push(setting);
 
             else if (setting.key === "swingMode" && this.capabilities.includes("oson"))
+                settings.push(setting);
+
+            else if (setting.key === 'swingModeCenter' && this.capabilities.includes("osal"))
+                settings.push(setting);
+
+            else if (setting.key === 'swingModeDegrees' && this.capabilities.includes("ancp"))
                 settings.push(setting);
 
             else if (setting.key === "focusMode" && this.capabilities.includes("ffoc"))
