@@ -53,11 +53,6 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
     async getCreateDeviceSettings(): Promise<Setting[]> {
         return [
             {
-                key: 'name',
-                title: 'Name',
-                description: 'The name of the fan.',
-            },
-            {
                 key: 'ipAddress',
                 title: "IP Address",
                 type: "string",
@@ -65,33 +60,65 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                 description: "The IP Address of the fan on your local network."
             },
             {
-                key: "serialNumber",
-                title: "Serial Number",
+                key: 'homebridgeCredentials',
+                title: 'Homebridge Credentials (optional)',
                 type: "string",
-                description: "The Serial Number of the Dyson fan.",
+                description: "The credentials entered into Homebridge Dyson Plugin, if you enter this, you won't need anything else besides the IP Address. This is a base64 string of the below data."
+            },
+            {
+                key: 'name',
+                title: 'Name (optional)',
+                description: 'The name of the fan.',
+            },
+            {
+                key: "serialNumber",
+                title: "Serial Number (optional)",
+                type: "string",
+                description: "(required if Homebridge Credentials not entered) The Serial Number of the Dyson fan.",
             },
             {
                 key: "localPassword",
-                title: "Credentials",
+                title: "Credentials (optional)",
                 type: "string",
-                description: "Local credentials for accessing the device.",
+                description: "(required if Homebridge Credentials not entered) Local credentials for accessing the device.",
             },
             {
                 key: "productType",
-                title: "Product Type",
+                title: "Product Type (optional)",
                 type: "string",
-                description: "The numberical product type provided by Dyson.",
+                description: "(required if Homebridge Credentials not entered) The numberical product type provided by Dyson.",
                 choices: ['358', '358E', '438', '438E', '455', '469', '475', '520', '527', '527E']
             }
         ];
     }
 
     async createDevice(settings: DeviceCreatorSettings): Promise<string> {
-        const name = settings.name.toString();
         const ipAddress = settings.ipAddress.toString();
-        const serialNumber = settings.serialNumber.toString();
-        const productType = settings.productType.toString();
-        const localPassword = settings.localPassword.toString();
+
+        /// TEST: eyJTZXJpYWwiOiJON1ItRVUtUEpBWFhYMEEiLCJOYW1lIjoiTXkgT2ZmaWNlIiwiVmVyc2lvbiI6IkVDRzJQRi4zMC4wNi4wMDMuMDAwMiIsIkxvY2FsQ3JlZGVudGlhbHMiOiJob21lYnJpZGdlLi4udGVzdCIsIkF1dG9VcGRhdGUiOnRydWUsIk5ld1ZlcnNpb25BdmFpbGFibGUiOmZhbHNlLCJQcm9kdWN0VHlwZSI6IjUyNyIsIkNvbm5lY3Rpb25UeXBlIjoid3NzIiwicGFzc3dvcmQiOiJob21lYnJpZGdlLi4udGVzdD09In0=
+        const homebridgeCredentials = settings.homebridgeCredentials?.toString();
+
+        let name = settings.name?.toString();
+        let serialNumber = settings.serialNumber?.toString();
+        let productType = settings.productType?.toString();
+        let localPassword = settings.localPassword?.toString();
+        let firmware = undefined;
+
+        if (homebridgeCredentials !== undefined && homebridgeCredentials.length > 0) {
+            const homebridgeCredentialsJson = JSON.parse(Buffer.from(homebridgeCredentials.trim(), 'base64').toString('utf8'));
+
+            name = homebridgeCredentialsJson.Name;
+            serialNumber = homebridgeCredentialsJson.Serial;
+            productType = homebridgeCredentialsJson.ProductType;
+            firmware = homebridgeCredentialsJson.Version;
+            localPassword = homebridgeCredentialsJson.password;
+        }
+
+        if (!name || !serialNumber || !productType || !localPassword) {
+            this.log.e('Could not complete manual creation of Dyson Fan, aborting creation due to missing value that is required.');
+            return;
+        }
+
         const product = ProductInfo.get(productType);
 
         const d: Device = {
@@ -113,6 +140,7 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                 model: product.model,
                 manufacturer: 'Dyson',
                 serialNumber: serialNumber,
+                firmware: firmware,
                 version: productType,
                 metadata: {
                     localPasswordHash: localPassword,
