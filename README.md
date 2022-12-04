@@ -1,6 +1,8 @@
 # scrypted-dyson
 
-## Installation
+The Cloud Setup is recommend if this is your first time setting up Dyson. If you have previously setup Dyson with Homebridge the Manual Setup will be quicker to get up and running with your existing config file.
+
+## Cloud Setup
 
 1. Enter `Country Code`, `Email`, and `Password`
 2. Click Save
@@ -17,3 +19,29 @@ A value will appear in the `Token` field.
 #### No matter what I am trying, I am unable to get an email code. What is happening?
 
 The Dyson API prevents multiple login's at the same time. However once the `Token` code has been retreived and `Local Password` has been downloaded for each device the cloud connection is no longer needed.  If you are running into trouble log out of your Dyson App, and wait for 15 minutes before clicking `Release Plugin`.  At that time you should receive a new email code. 
+
+## Manual Setup
+
+*This is recommended if you have previous setup the homebridge config, and already have the `ipAddress`, `serialNumber`, and `credentials` from the config file.*
+
+1. Look up your `Product Type` before starting to add the device.
+2. Click `Add Device`
+3. Provide a `Name` for your device.
+4. Copy the `ipAddress`, `serialNumber`, and `credentials` from the config file into the setup screen.
+5. Select the `Product Type` that you found in step 1.
+
+### How do I find my `Product Type`?
+
+To find your product type, you need to know your model of the device:
+
+* Dyson Pure Humidify+Cool (PH01/PH02) is `358`
+* Dyson Pure Humidify+Cool (PH03) is `358E`
+* Dyson Pure Humidify+Cool Formaldehyde (PH04) is `358E`
+* Dyson Pure Cool Link Tower (TP02) is `475`
+* Dyson Pure Cool Tower (TP04/TP06) is `438`
+* Dyson Pure Cool Tower (TP07/TP09) is `438E`
+* Dyson Pure Hot+Cool Link (HP02) is `455`
+* Dyson Pure Hot+Cool (HP04/HP06) is `527`
+* Dyson Pure Hot+Cool Formaldehyde (HP07/HP09) is `527E`
+* Dyson Pure Cool Link Desk (DP01) is `469`
+* Dyson Pure Cool Desk (DP04) is `520`

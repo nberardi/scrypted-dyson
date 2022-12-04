@@ -1,4 +1,4 @@
-import sdk from '@scrypted/sdk'
+import sdk, { DeviceCreator, DeviceCreatorSettings } from '@scrypted/sdk'
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { Device, DeviceDiscovery, DeviceProvider, ScryptedDeviceBase, ScryptedDeviceType, ScryptedInterface, Setting, Settings, SettingValue } from '@scrypted/sdk';
 import { StorageSettings } from "@scrypted/sdk/storage-settings"
@@ -13,7 +13,7 @@ const { deviceManager } = sdk;
 const agent = "DysonLink/42702 CFNetwork/133 5.0.3 Darwin/21.6.0";
 
 
-export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, DeviceProvider, Settings {
+export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, DeviceProvider, DeviceCreator, Settings {
     storageSettings = new StorageSettings(this, {
         countryCode: {
             title: "Country Code",
@@ -48,6 +48,105 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
     constructor(nativeId?: string) {
         super(nativeId);
         this.discoverDevices();
+    }
+
+    async getCreateDeviceSettings(): Promise<Setting[]> {
+        return [
+            {
+                key: 'name',
+                title: 'Name',
+                description: 'The name of the fan.',
+            },
+            {
+                key: 'ipAddress',
+                title: "IP Address",
+                type: "string",
+                placeholder: "192.168.1.XX",
+                description: "The IP Address of the fan on your local network."
+            },
+            {
+                key: "serialNumber",
+                title: "Serial Number",
+                type: "string",
+                description: "The Serial Number of the Dyson fan.",
+            },
+            {
+                key: "localPassword",
+                title: "Credentials",
+                type: "string",
+                description: "Local credentials for accessing the device.",
+            },
+            {
+                key: "productType",
+                title: "Product Type",
+                type: "string",
+                description: "The numberical product type provided by Dyson.",
+                choices: ['358', '358E', '438', '438E', '455', '469', '475', '520', '527', '527E']
+            }
+        ];
+    }
+
+    async createDevice(settings: DeviceCreatorSettings): Promise<string> {
+        const name = settings.name.toString();
+        const ipAddress = settings.ipAddress.toString();
+        const serialNumber = settings.serialNumber.toString();
+        const productType = settings.productType.toString();
+        const localPassword = settings.localPassword.toString();
+        const product = ProductInfo.get(productType);
+
+        const d: Device = {
+            providerNativeId: this.nativeId,
+            name: name,
+            type: ScryptedDeviceType.Fan,
+            nativeId: serialNumber,
+            interfaces: [
+                ScryptedInterface.Fan,
+                ScryptedInterface.Thermometer,
+                ScryptedInterface.HumiditySensor,
+                ScryptedInterface.AirQualitySensor,
+                ScryptedInterface.OnOff,
+                ScryptedInterface.Settings,
+                ScryptedInterface.Online,
+                ScryptedInterface.Refresh
+            ],
+            info: {
+                model: product.model,
+                manufacturer: 'Dyson',
+                serialNumber: serialNumber,
+                version: productType,
+                metadata: {
+                    localPasswordHash: localPassword,
+                    productType: productType,
+                    product: product,
+                }
+            }
+        };
+
+        if (product.hasAdvancedAirQualitySensors) {
+            d.interfaces.push(ScryptedInterface.PM25Sensor);
+            d.interfaces.push(ScryptedInterface.PM10Sensor);
+            d.interfaces.push(ScryptedInterface.NOXSensor);
+            d.interfaces.push(ScryptedInterface.VOCSensor);
+        }
+
+        if (product.hasHeating) {
+            d.interfaces.push(ScryptedInterface.TemperatureSetting);
+        }
+
+        if (product.hasHumidifier) {
+            d.interfaces.push(ScryptedInterface.HumiditySensor);
+            d.interfaces.push(ScryptedInterface.HumiditySetting);
+        }
+
+        await deviceManager.onDeviceDiscovered(d);
+
+        const s = deviceManager.getDeviceStorage(d.nativeId);
+        s.setItem("ipAddress", ipAddress);
+        s.setItem("serialNumber", serialNumber);
+        s.setItem("productType", productType);
+        s.setItem("localPassword", localPassword);
+
+        return serialNumber;
     }
 
     getSettings(): Promise<Setting[]> {

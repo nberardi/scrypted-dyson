@@ -1,6 +1,6 @@
 {
   "name": "scrypted-dyson",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Scrypted plugin for Dyson",
   "author": "nberardi",
   "license": "MIT",
@@ -38,6 +38,7 @@
     "interfaces": [
       "DeviceDiscovery",
       "DeviceProvider",
+      "DeviceCreator",
       "Settings"
     ]
   },
