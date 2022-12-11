@@ -395,7 +395,6 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff,
         // Sets the sensor data for air quality (the poorest sensor result wins)
         var airQuality = Math.max(pQuality, vQuality);
 
-        this.airQuality = AirQuality.Unknown;
         switch(airQuality) {
             case 1: 
                 this.airQuality = AirQuality.Excellent;
@@ -411,6 +410,9 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff,
                 break;
             case 5:
                 this.airQuality = AirQuality.Inferior;
+                break;
+            default:
+                this.airQuality = AirQuality.Unknown;
                 break;
         }
     }

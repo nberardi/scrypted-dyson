@@ -75,7 +75,6 @@ export class DysonFanWithAdvancedAirQuality extends DysonFan implements PM25Sens
         // Sets the sensor data for air quality (the poorest sensor result wins)
         var airQuality = Math.max(pm25Quality, pm10Quality, va10Quality, noxlQuality, hchoQuality);
 
-        this.airQuality = AirQuality.Unknown;
         switch(airQuality) {
             case 1: 
                 this.airQuality = AirQuality.Excellent;
@@ -92,6 +91,8 @@ export class DysonFanWithAdvancedAirQuality extends DysonFan implements PM25Sens
             case 5:
                 this.airQuality = AirQuality.Inferior;
                 break;
+            default:
+                this.airQuality = AirQuality.Unknown;
         }
 
         this.pm25Density = pm25;
