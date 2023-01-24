@@ -220,10 +220,7 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
     }
 
     async discoverDevices(duration?: number): Promise<void> {
-        let currentDevices = deviceManager.getNativeIds();
 
-        //if (currentDevices?.length > 0)
-        //    return;
         if (!this.storageSettings.values.countryCode || !this.storageSettings.values.email || !this.storageSettings.values.password) {
             this.log.a('Enter your Country Code, Email and Password to discover your Dyson Fans.');
             return;
