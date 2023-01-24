@@ -33,9 +33,17 @@ export class ProductInfo {
     hasJetFocus: true,
   };
 
+  static '358K' = {
+    model: 'Dyson Purifier Humidify+Cool',
+    hardwareRevision: 'PH03',
+    hasAdvancedAirQualitySensors: true,
+    hasHumidifier: true,
+    hasJetFocus: true,
+  };
+
   static '358E' = {
-    model: 'Dyson Pure Humidify+Cool',
-    hardwareRevision: 'PH03/PH04',
+    model: 'Dyson Purifier Humidify+Cool Formaldehyde',
+    hardwareRevision: 'PH04',
     hasAdvancedAirQualitySensors: true,
     hasHumidifier: true,
     hasJetFocus: true,
@@ -48,9 +56,16 @@ export class ProductInfo {
     hasAdvancedAirQualitySensors: true,
   };
 
+  static '438K' = {
+    model: 'Dyson Purifier Cool',
+    hardwareRevision: 'TP07',
+    hasJetFocus: true,
+    hasAdvancedAirQualitySensors: true,
+  };
+
   static '438E' = {
-    model: 'Dyson Pure Cool',
-    hardwareRevision: 'TP07/TP09',
+    model: 'Dyson Purifier Cool Formaldehyde',
+    hardwareRevision: 'TP09',
     hasJetFocus: true,
     hasAdvancedAirQualitySensors: true,
   };
@@ -68,12 +83,12 @@ export class ProductInfo {
   };
 
   static '475' = {
-    model: 'Dyson Pure Cool Link Tower',
-    hardwareRevision: 'TP02',
+    model: 'Dyson Pure Cool Link',
+    hardwareRevision: 'TP02'
   };
 
   static '520' = {
-    model: 'Dyson Pure Cool Desk',
+    model: 'Dyson Pure Cool Purifying Desk',
     hardwareRevision: 'DP04',
     hasJetFocus: true,
     hasAdvancedAirQualitySensors: true,
@@ -87,9 +102,17 @@ export class ProductInfo {
     hasHeating: true,
   };
 
+  static '527K' = {
+    model: 'Dyson Purifier Hot+Cool',
+    hardwareRevision: 'HP07',
+    hasJetFocus: true,
+    hasAdvancedAirQualitySensors: true,
+    hasHeating: true,
+  };
+
   static '527E' = {
     model: 'Dyson Purifier Hot+Cool Formaldehyde',
-    hardwareRevision: 'HP07/HP09',
+    hardwareRevision: 'HP09',
     hasJetFocus: true,
     hasAdvancedAirQualitySensors: true,
     hasHeating: true,
