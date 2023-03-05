@@ -33,10 +33,10 @@ export class DysonBase extends ScryptedDeviceBase implements Online, Settings, R
         },
         productType: {
             title: "Product Type",
+            group: 'Credentials',
             type: "string",
             description: "The numberical product type provided by Dyson.",
-            readonly: true,
-            hide: true
+            readonly: true
         },
         temperatureUnit: {
             title: 'Temperature Unit',

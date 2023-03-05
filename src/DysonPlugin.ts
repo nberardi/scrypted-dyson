@@ -1,4 +1,4 @@
-import sdk, { DeviceCreator, DeviceCreatorSettings } from '@scrypted/sdk'
+import sdk, { AdoptDevice, DeviceCreator, DeviceCreatorSettings, DiscoveredDevice } from '@scrypted/sdk'
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { Device, DeviceDiscovery, DeviceProvider, ScryptedDeviceBase, ScryptedDeviceType, ScryptedInterface, Setting, Settings, SettingValue } from '@scrypted/sdk';
 import { StorageSettings } from "@scrypted/sdk/storage-settings"
@@ -48,6 +48,14 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
     constructor(nativeId?: string) {
         super(nativeId);
         this.discoverDevices();
+    }
+
+    async releaseDevice(id: string, nativeId: string): Promise<void> {
+        this.fans.delete(nativeId);
+    }
+
+    async adoptDevice(device: AdoptDevice): Promise<string> {
+        throw new Error('Method not implemented.');
     }
 
     async getCreateDeviceSettings(): Promise<Setting[]> {
@@ -219,7 +227,7 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
         return undefined;
     }
 
-    async discoverDevices(duration?: number): Promise<void> {
+    async discoverDevices(scan?: boolean): Promise<DiscoveredDevice[]> {
 
         if (!this.storageSettings.values.countryCode || !this.storageSettings.values.email || !this.storageSettings.values.password) {
             this.log.a('Enter your Country Code, Email and Password to discover your Dyson Fans.');
@@ -240,7 +248,7 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
 
         if (this.storageSettings.values.authorizationHeader) {
             const client = axios.create();
-            let fans: AxiosResponse;
+            let fans: any;
             let self = this;
 
             await client("https://appapi.cp.dyson.com/v2/provisioningservice/manifest", {
@@ -336,6 +344,22 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                 s.setItem("productType", d.info.metadata.productType);
                 s.setItem("localPassword", d.info.metadata.localPasswordHash);
             }
+
+            return devices.map(d => {
+                return {
+                    name: d.name,
+                    description: d.nativeId,
+                    nativeId: d.nativeId,
+                    type: d.type,
+                    interfaces: d.interfaces,
+                    info: d.info,
+                    settings: [
+                        { key: "serialNumber", value: d.info.serialNumber },
+                        { key: "productType", value: d.info.metadata.productType },
+                        { key: "localPassword", value: d.info.metadata.localPasswordHash }
+                    ]
+                } as DiscoveredDevice;
+            });
         }
     }
 
@@ -347,7 +371,7 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
         const client = axios.create();
         const self = this;
 
-        const catchError = function (error: AxiosError) {
+        const catchError = function (error: any) {
             let msg = `[Status ${error.response.status} ${error.response.statusText}] ${error.response.data?.Message}`;
             self.console.error(msg);
             self.log.e(msg);
@@ -369,7 +393,7 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                         data: {
                             email: this.storageSettings.values.email
                         }
-                    });
+                    }) as any;
 
                     if (step1Response.status === 200) {
                         self.console.log("login step 1", step1Response.data);
@@ -394,7 +418,7 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                         data: {
                             email: this.storageSettings.values.email
                         }
-                    });
+                    }) as any;
 
                     if (step2Response.status === 200) {
                         self.console.log("login step 2", step2Response.data);
@@ -428,7 +452,7 @@ export class DysonPlugin extends ScryptedDeviceBase implements DeviceDiscovery, 
                         challengeId: this.challengeId,
                         otpCode: this.storageSettings.values.otpCode
                     }
-                });
+                }) as any;
 
                 if (step3mfaResponse.status === 200) {
                     self.console.log("login step 3 (2FA)", step3mfaResponse.data);
