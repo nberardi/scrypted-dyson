@@ -3,8 +3,6 @@ import { StorageSetting, StorageSettings, StorageSettingsDevice } from '@scrypte
 import { ProductInfo } from "./ProductInfo";
 import mqtt from 'mqtt';
 import { MqttClient } from 'mqtt';
-import { isNullOrUndefined } from 'util';
-import { setEngine } from 'crypto';
 
 
 export class DysonBase extends ScryptedDeviceBase implements Online, Settings, Refresh, StorageSettingsDevice {
