@@ -1,12 +1,10 @@
-import { AirQuality, AirQualitySensor, Fan, FanMode, FanState, FanStatus, HumiditySensor, OnOff, TemperatureUnit, Thermometer } from '@scrypted/sdk';
+import { AirQuality, AirQualitySensor, Fan, FanMode, FanState, FanStatus, FilterMaintenance, HumiditySensor, OnOff, TemperatureUnit, Thermometer } from '@scrypted/sdk';
 import { DysonBase } from './DysonBase';
 
-export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff, HumiditySensor, Thermometer {
+export class DysonFan extends DysonBase implements Fan, AirQualitySensor, FilterMaintenance, OnOff, HumiditySensor, Thermometer {
     tiltStatus: boolean;
     errorCode: string;
     warningCode: string;
-    filterChangeRequired: boolean;
-    filterLifeLevel: number;
 
     constructor(nativeId: string) {
         super(nativeId);
@@ -122,7 +120,7 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff,
         this.console.log(`${on ? 'turnOn': 'turnOff'}(): ${JSON.stringify(commandData)}`);
         this.setState(commandData);
     }
-    
+
     async setFan(fan: FanState): Promise<void> {
         let commandData = {
         };
@@ -239,14 +237,14 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff,
             const cflr = content['product-state']['cflr'] == "INV" ? 100 : Number.parseInt(content['product-state']['cflr']);
             const hflr = content['product-state']['hflr'] == "INV" ? 100 : Number.parseInt(content['product-state']['hflr']);
 
-            this.filterChangeRequired = Math.min(cflr, hflr) < 10;
+            this.filterChangeIndication = Math.min(cflr, hflr) < 10;
             this.filterLifeLevel = Math.min(cflr, hflr);
         }
 
         if (content['product-state']['filf']) {
             const filf = Number.parseInt(content['product-state']['filf']);
 
-            this.filterChangeRequired = Math.ceil(filf * 100) < 10;
+            this.filterChangeIndication = Math.ceil(filf * 100) < 10;
             this.filterLifeLevel = Math.ceil(filf * 100);
         }
 
@@ -338,14 +336,14 @@ export class DysonFan extends DysonBase implements Fan, AirQualitySensor, OnOff,
             const cflr = content['product-state']['cflr'][1] == "INV" ? 100 : Number.parseInt(content['product-state']['cflr'][1]);
             const hflr = content['product-state']['hflr'][1] == "INV" ? 100 : Number.parseInt(content['product-state']['hflr'][1]);
 
-            this.filterChangeRequired = Math.min(cflr, hflr) >= 10;
+            this.filterChangeIndication = Math.min(cflr, hflr) >= 10;
             this.filterLifeLevel = Math.min(cflr, hflr);
         }
 
         if (content['product-state']['filf']) {
             const filf = Number.parseInt(content['product-state']['filf'][1]);
 
-            this.filterChangeRequired = Math.ceil(filf * 100) >= 10;
+            this.filterChangeIndication = Math.ceil(filf * 100) >= 10;
             this.filterLifeLevel = Math.ceil(filf * 100);
         }
 
