@@ -117,4 +117,10 @@ export class ProductInfo {
     hasAdvancedAirQualitySensors: true,
     hasHeating: true,
   };
+
+  static '664' = {
+    model: 'Purifier Big+Quiet Series',
+    hardwareRevision: 'BP02',
+    hasAdvancedAirQualitySensors: true
+  }
 }

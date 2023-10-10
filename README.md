@@ -46,14 +46,16 @@ That is because all the information that is required is encoded into the `creden
 
 To find your product type, you need to know your model of the device:
 
-* Dyson Pure Humidify+Cool (PH01/PH02) is `358`
-* Dyson Pure Humidify+Cool (PH03) is `358E`
-* Dyson Pure Humidify+Cool Formaldehyde (PH04) is `358E`
-* Dyson Pure Cool Link Tower (TP02) is `475`
-* Dyson Pure Cool Tower (TP04/TP06) is `438`
-* Dyson Pure Cool Tower (TP07/TP09) is `438E`
-* Dyson Pure Hot+Cool Link (HP02) is `455`
-* Dyson Pure Hot+Cool (HP04/HP06) is `527`
-* Dyson Pure Hot+Cool Formaldehyde (HP07/HP09) is `527E`
-* Dyson Pure Cool Link Desk (DP01) is `469`
-* Dyson Pure Cool Desk (DP04) is `520`
+* Dyson Purifier Humidify+Cool (PH01/PH02) is `358`
+* Dyson Purifier Humidify+Cool (PH03) is `358E`
+* Dyson Purifier Humidify+Cool Formaldehyde (PH04) is `358E`
+* Dyson Purifier Cool Link Tower (TP02) is `475`
+* Dyson Purifier Cool Tower (TP04/TP06) is `438`
+* Dyson Purifier Cool Tower (TP07/TP09) is `438E`
+* Dyson Purifier Hot+Cool Link (HP02) is `455`
+* Dyson Purifier Hot+Cool (HP04/HP06) is `527`
+* Dyson Purifier Hot+Cool Formaldehyde (HP07/HP09) is `527E`
+* Dyson Purifier Cool Link Desk (DP01) is `469`
+* Dyson Purifier Cool Desk (DP04) is `520`
+* Dyson Purifier Hot+Cool (HP07/HP09) is `527K`
+* Dyson Purifier Big+Cool (BP02, BP03, BP04, BP06) is `664`

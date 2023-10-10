@@ -1,6 +1,6 @@
 {
   "name": "scrypted-dyson",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Scrypted plugin for Dyson",
   "author": "nberardi",
   "license": "MIT",
@@ -48,7 +48,6 @@
   },
   "devDependencies": {
     "@scrypted/mqtt": "^0.0.68",
-    "@scrypted/sdk": "^0.2.103",
-    "webpack-bundle-analyzer": "^4.5.0"
+    "@scrypted/sdk": "^0.2.104"
   }
 }
